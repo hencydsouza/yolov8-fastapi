@@ -6,11 +6,12 @@ import numpy as np
 from typing import Optional
 
 from ultralytics import YOLO
-from ultralytics.yolo.utils.plotting import Annotator, colors
+from ultralytics.utils.plotting import Annotator, colors
 
 
 # Initialize the models
-model_sample_model = YOLO("./models/sample_model/yolov8n.pt")
+# model_sample_model = YOLO("./models/sample_model/yolov8n.pt")
+model_sample_model = YOLO("./models/sample_model/best.pt")
 
 
 def get_image_from_bytes(binary_image: bytes) -> Image:

@@ -44,6 +44,7 @@ app = FastAPI(
 # to access resources from the FastAPI server, 
 # and the client and server are hosted on different domains.
 origins = [
+    "http://localhost:5173",
     "http://localhost",
     "http://localhost:8008",
     "*"
@@ -177,3 +178,38 @@ def img_object_detection_to_img(file: bytes = File(...)):
     # return image in bytes format
     return StreamingResponse(content=get_bytes_from_image(final_image), media_type="image/jpeg")
 
+@app.post("/img_object_detection_to_recipe")
+def img_object_detection_to_json(file: bytes = File(...)):
+    """
+    Object Detection from an image.
+
+    Args:
+        file (bytes): The image file in bytes format.
+    Returns:
+        dict: JSON format containing the Objects Detections.
+    """
+    # Step 1: Initialize the result dictionary with None values
+    result={'detect_objects': None}
+
+    # Step 2: Convert the image file to an image object
+    input_image = get_image_from_bytes(file)
+
+    # Step 3: Predict from model
+    predict = detect_sample_model(input_image)
+
+    # Step 4: Select detect obj return info
+    # here you can choose what data to send to the result
+    detect_res = predict[['name', 'confidence']]
+    objects = detect_res['name'].values
+    
+    # detected objects to string
+    objects_list = detect_res['name'].values.tolist()
+    objects_list = ' '.join(set(objects_list))
+    # print(objects_list)
+
+    result['detect_objects_names'] = ', '.join(objects)
+    result['detect_objects'] = json.loads(detect_res.to_json(orient='records'))
+
+    # Step 5: Logs and return
+    logger.info("results: {}", result)
+    return result
