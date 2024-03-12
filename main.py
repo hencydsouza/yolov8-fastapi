@@ -6,12 +6,15 @@ from loguru import logger
 import sys
 import ssl
 import uvicorn
+import base64
+import io
 
 from fastapi import FastAPI, File, status
 from fastapi.responses import RedirectResponse
 from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.exceptions import HTTPException
+from fastapi.responses import JSONResponse
 
 from io import BytesIO
 
@@ -181,6 +184,13 @@ def img_object_detection_to_img(file: bytes = File(...)):
     # return image in bytes format
     return StreamingResponse(content=get_bytes_from_image(final_image), media_type="image/jpeg")
 
+def get_bytes_from_image(image):
+    # Convert the image object to bytes
+    image_bytes = io.BytesIO()
+    image.save(image_bytes, format='JPEG')
+    image_bytes.seek(0)
+    return image_bytes.read()
+
 @app.post("/img_object_detection_to_recipe")
 def img_object_detection_to_json(file: bytes = File(...)):
     """
@@ -199,7 +209,7 @@ def img_object_detection_to_json(file: bytes = File(...)):
 
     # Step 3: Predict from model
     predict = detect_sample_model(input_image)
-
+    
     # Step 4: Select detect obj return info
     # here you can choose what data to send to the result
     detect_res = predict[['name', 'confidence']]
@@ -208,30 +218,52 @@ def img_object_detection_to_json(file: bytes = File(...)):
     # detected objects to string
     objects_list = detect_res['name'].values.tolist()
     objects_list = ' '.join(set(objects_list))
-    # print(objects_list)
+    # print(len(objects_list))
 
-    # recommendations
-    recipe = rec_sys.RecSys(objects_list)
+    if len(objects_list)!=0:
+        # recommendations
+        recipe = rec_sys.RecSys(objects_list)
+        
+        response = {}
+        count = 0
+        for index, row in recipe.iterrows():
+            response[count] = {
+                'recipe': str(row['recipe']),
+                'score': str(row['score']),
+                # 'ingredients': str(row['ingredients']),
+                # 'Instructions': str(row['Instructions']),
+                'Srno': str(row['Srno']).split('.')[0],
+                'url': str(row['url'])
+            }
+            count += 1
+
+        # result json
+        result['detect_objects_names'] = ', '.join(objects)
+        result['detect_objects'] = json.loads(detect_res.to_json(orient='records'))
+        result['recommended_recipes'] = response
+    else:
+        result['detect_objects'] = 'No ingredients detected'
     
-    response = {}
-    count = 0
-    for index, row in recipe.iterrows():
-        response[count] = {
-            'recipe': str(row['recipe']),
-            'score': str(row['score']),
-            'ingredients': str(row['ingredients']),
-            'url': str(row['url'])
-        }
-        count += 1
-
-    # result json
-    result['detect_objects_names'] = ', '.join(objects)
-    result['detect_objects'] = json.loads(detect_res.to_json(orient='records'))
-    result['recommended_recipes'] = response
+    # final_image = add_bboxs_on_img(image = input_image, predict = predict)
+    # image_bytes = get_bytes_from_image(final_image)
+    # image_base64 = base64.b64encode(image_bytes).decode('utf-8')
 
     # Step 5: Logs and return
-    logger.info("results: {}", result)
+    # logger.info("results: {}", result)
     return result
+    # return JSONResponse(content={"result": result, "annotated_image": image_base64})
+    
+# get recipe details using its Srno
+@app.get("/recipe/{srno}")
+async def get_recipe_by_srno(srno: int):
+    df = pd.read_csv(config.PARSED_PATH)
+    # Check if Srno exists in the DataFrame
+    if srno in df["Srno"].values:
+        # Filter the DataFrame based on Srno
+        recipe_data = df[df["Srno"] == srno].to_dict(orient="records")[0]
+        return recipe_data
+    else:
+        return {"error": "Recipe not found"}
 
 if __name__ == "__main__":
-    uvicorn.run("main:app", host="0.0.0.0", ssl_keyfile="./certificate/key.pem", ssl_certfile="./certificate/cert.pem")
+    uvicorn.run("main:app", host="0.0.0.0", ssl_keyfile="./certificate/key.pem", ssl_certfile="./certificate/cert.pem", reload=True)

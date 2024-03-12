@@ -22,6 +22,7 @@ def get_recommendations(N, scores):
         )
         recommendation.at[count, "Instructions"] = df_recipes["Instructions"][i]
         recommendation.at[count, "url"] = df_recipes["recipe_urls"][i]
+        recommendation.at[count, "Srno"] = df_recipes["Srno"][i]
         recommendation.at[count, "score"] = "{:.3f}".format(float(scores[i]))
         count += 1
     return recommendation
