@@ -266,4 +266,6 @@ async def get_recipe_by_srno(srno: int):
         return {"error": "Recipe not found"}
 
 if __name__ == "__main__":
+    import nltk
+    nltk.download('wordnet')
     uvicorn.run("main:app", host="0.0.0.0", ssl_keyfile="./certificate/key.pem", ssl_certfile="./certificate/cert.pem", reload=True)
