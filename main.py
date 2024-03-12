@@ -4,6 +4,8 @@ import pandas as pd
 from PIL import Image
 from loguru import logger
 import sys
+import ssl
+import uvicorn
 
 from fastapi import FastAPI, File, status
 from fastapi.responses import RedirectResponse
@@ -17,6 +19,7 @@ from app import get_image_from_bytes
 from app import detect_sample_model
 from app import add_bboxs_on_img
 from app import get_bytes_from_image
+import config, rec_sys
 
 ####################################### logger #################################
 
@@ -58,19 +61,19 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-@app.on_event("startup")
-def save_openapi_json():
-    '''This function is used to save the OpenAPI documentation 
-    data of the FastAPI application to a JSON file. 
-    The purpose of saving the OpenAPI documentation data is to have 
-    a permanent and offline record of the API specification, 
-    which can be used for documentation purposes or 
-    to generate client libraries. It is not necessarily needed, 
-    but can be helpful in certain scenarios.'''
-    openapi_data = app.openapi()
-    # Change "openapi.json" to desired filename
-    with open("openapi.json", "w") as file:
-        json.dump(openapi_data, file)
+# @app.on_event("startup")
+# def save_openapi_json():
+#     '''This function is used to save the OpenAPI documentation 
+#     data of the FastAPI application to a JSON file. 
+#     The purpose of saving the OpenAPI documentation data is to have 
+#     a permanent and offline record of the API specification, 
+#     which can be used for documentation purposes or 
+#     to generate client libraries. It is not necessarily needed, 
+#     but can be helpful in certain scenarios.'''
+#     openapi_data = app.openapi()
+#     # Change "openapi.json" to desired filename
+#     with open("openapi.json", "w") as file:
+#         json.dump(openapi_data, file)
 
 # redirect
 @app.get("/", include_in_schema=False)
@@ -207,9 +210,28 @@ def img_object_detection_to_json(file: bytes = File(...)):
     objects_list = ' '.join(set(objects_list))
     # print(objects_list)
 
+    # recommendations
+    recipe = rec_sys.RecSys(objects_list)
+    
+    response = {}
+    count = 0
+    for index, row in recipe.iterrows():
+        response[count] = {
+            'recipe': str(row['recipe']),
+            'score': str(row['score']),
+            'ingredients': str(row['ingredients']),
+            'url': str(row['url'])
+        }
+        count += 1
+
+    # result json
     result['detect_objects_names'] = ', '.join(objects)
     result['detect_objects'] = json.loads(detect_res.to_json(orient='records'))
+    result['recommended_recipes'] = response
 
     # Step 5: Logs and return
     logger.info("results: {}", result)
     return result
+
+if __name__ == "__main__":
+    uvicorn.run("main:app", host="0.0.0.0", ssl_keyfile="./certificate/key.pem", ssl_certfile="./certificate/cert.pem")
