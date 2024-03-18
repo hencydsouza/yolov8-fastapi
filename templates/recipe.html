@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Recipe Details</title>
+</head>
+
+<body>
+    <h1>Recipe Details</h1>
+    <pre id="json" style="display: none;">{{ recipe_data | tojson(indent=2) }}</pre>
+
+    <div id="main"></div>
+
+    <script>
+        const data = JSON.parse(document.getElementById('json').innerHTML)
+        console.log(data)
+
+        document.getElementById('main').innerHTML = `
+            <p>recipe_name: ${data.recipe_name}</p>
+            <p>ingredients: ${data.ingredients}</p>
+            <p>Instructions: ${data.Instructions}</p>
+        `
+        // <a href="${data.recipe_urls}">Read More</a>
+        
+    </script>
+</body>
+
+</html>

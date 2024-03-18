@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Result</title>
+</head>
+
+<body>
+    <h1>Result</h1>
+    <h2>Detected ingredients: <span id="ingredients"></span></h2>
+    <img id="image">
+    <div id="resultContainer"></div>
+    <ul id="list"></ul>
+
+    <script>
+        // Retrieve the result from local storage
+        let result = JSON.parse(localStorage.getItem('result'));
+
+        // console.log(result)
+
+        image = result.annotated_image
+        result = result.result
+
+        const img = new Image();
+        img.src = "data:image/jpeg;base64," + image
+
+        if (result.detect_objects_names) {
+            document.getElementById('image').src = img.src;
+            document.getElementById('ingredients').innerHTML = result.detect_objects_names
+
+            for (let i = 0; i < Object.keys(result.recommended_recipes).length; i++) {
+                document.getElementById('list').innerHTML += `<li class="recipe"><a href="/recipe/${result.recommended_recipes[i].Srno}">${result.recommended_recipes[i].recipe}</a></li>`
+            }
+        } else {
+            document.getElementById('ingredients').innerHTML = result.detect_objects
+        }
+
+
+        // Display the result
+        // resultContainer.innerHTML = `<p>Result: ${JSON.stringify(result)}</p>`;
+    </script>
+</body>
+
+</html>

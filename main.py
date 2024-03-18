@@ -9,12 +9,13 @@ import uvicorn
 import base64
 import io
 
-from fastapi import FastAPI, File, status
-from fastapi.responses import RedirectResponse
+from fastapi import FastAPI, File, status, Request
+from fastapi.responses import RedirectResponse,HTMLResponse
 from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.exceptions import HTTPException
 from fastapi.responses import JSONResponse
+from fastapi.templating import Jinja2Templates
 
 from io import BytesIO
 
@@ -44,6 +45,8 @@ app = FastAPI(
                     and return image and json result""",
     version="2023.1.31",
 )
+
+templates = Jinja2Templates(directory="templates")
 
 # This function is needed if you want to allow client requests 
 # from specific domains (specified in the origins argument) 
@@ -244,26 +247,36 @@ def img_object_detection_to_json(file: bytes = File(...)):
     else:
         result['detect_objects'] = 'No ingredients detected'
     
-    # final_image = add_bboxs_on_img(image = input_image, predict = predict)
-    # image_bytes = get_bytes_from_image(final_image)
-    # image_base64 = base64.b64encode(image_bytes).decode('utf-8')
+    final_image = add_bboxs_on_img(image = input_image, predict = predict)
+    image_bytes = get_bytes_from_image(final_image)
+    image_base64 = base64.b64encode(image_bytes).decode('utf-8')
 
     # Step 5: Logs and return
     # logger.info("results: {}", result)
-    return result
-    # return JSONResponse(content={"result": result, "annotated_image": image_base64})
+    # return result
+    return JSONResponse(content={"result": result, "annotated_image": image_base64})
     
 # get recipe details using its Srno
-@app.get("/recipe/{srno}")
-async def get_recipe_by_srno(srno: int):
+@app.get("/recipe/{srno}", response_class=HTMLResponse)
+async def get_recipe_by_srno(srno: int, request: Request):
     df = pd.read_csv(config.PARSED_PATH)
     # Check if Srno exists in the DataFrame
     if srno in df["Srno"].values:
         # Filter the DataFrame based on Srno
         recipe_data = df[df["Srno"] == srno].to_dict(orient="records")[0]
-        return recipe_data
+        # return recipe_data
+        return templates.TemplateResponse("recipe.html", {"request": request, "recipe_data": recipe_data})
     else:
-        return {"error": "Recipe not found"}
+        # return {"error": "Recipe not found"}
+        return templates.TemplateResponse("recipe.html", {"request": request, "error": "Recipe not found"})
+    
+@app.get("/home")
+async def read_root(request: Request):
+    return templates.TemplateResponse("index.html", {"request": request})
+
+@app.get("/result", response_class=HTMLResponse)
+async def display_result(request: Request):
+    return templates.TemplateResponse("result.html", {"request": request})
 
 if __name__ == "__main__":
     import nltk
